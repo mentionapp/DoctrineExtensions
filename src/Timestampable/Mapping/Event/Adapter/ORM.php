@@ -14,6 +14,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Gedmo\Mapping\Event\Adapter\ORM as BaseAdapterORM;
 use Gedmo\Timestampable\Mapping\Event\TimestampableAdapter;
+use Mention\Kebab\Date\DateUtils;
 
 /**
  * Doctrine event adapter for ORM adapted
@@ -44,17 +45,20 @@ final class ORM extends BaseAdapterORM implements TimestampableAdapter
      */
     private function getRawDateValue(array $mapping)
     {
-        $datetime = new \DateTime();
-        $type = $mapping['type'] ?? null;
-
-        if ('integer' === $type) {
-            return (int) $datetime->format('U');
+        if (isset($mapping['type']) && 'integer' === $mapping['type']) {
+            return DateUtils::now()->getTimestamp();
         }
 
-        if (in_array($type, ['date_immutable', 'time_immutable', 'datetime_immutable', 'datetimetz_immutable'], true)) {
-            return \DateTimeImmutable::createFromMutable($datetime);
+        if (isset($mapping['type']) && in_array($mapping['type'], ['date_immutable', 'time_immutable', 'datetime_immutable', 'datetimetz_immutable'], true)) {
+            return DateUtils::now();
         }
 
-        return $datetime;
+        return DateUtils::toMutable(
+            DateUtils::fromStringTz(
+                number_format(microtime(true), 6, '.', ''),
+                new \DateTimeZone(date_default_timezone_get()),
+                'U.u'
+            )
+        );
     }
 }
