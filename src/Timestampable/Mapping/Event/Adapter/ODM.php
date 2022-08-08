@@ -12,6 +12,7 @@ namespace Gedmo\Timestampable\Mapping\Event\Adapter;
 use Doctrine\ODM\MongoDB\Mapping\ClassMetadata;
 use Gedmo\Mapping\Event\Adapter\ODM as BaseAdapterODM;
 use Gedmo\Timestampable\Mapping\Event\TimestampableAdapter;
+use Mention\Kebab\Date\DateUtils;
 
 /**
  * Doctrine event adapter for ODM adapted
@@ -28,13 +29,18 @@ final class ODM extends BaseAdapterODM implements TimestampableAdapter
     {
         $mapping = $meta->getFieldMapping($field);
         if (isset($mapping['type']) && 'timestamp' === $mapping['type']) {
-            return time();
+            return DateUtils::now()->getTimestamp();
         }
         if (isset($mapping['type']) && in_array($mapping['type'], ['date_immutable', 'time_immutable', 'datetime_immutable', 'datetimetz_immutable'], true)) {
-            return new \DateTimeImmutable();
+            return DateUtils::now();
         }
 
-        return \DateTime::createFromFormat('U.u', number_format(microtime(true), 6, '.', ''))
-            ->setTimeZone(new \DateTimeZone(date_default_timezone_get()));
+        return DateUtils::toMutable(
+            DateUtils::fromStringTz(
+                number_format(microtime(true), 6, '.', ''),
+                new \DateTimeZone(date_default_timezone_get()),
+                'U.u'
+            )
+        );
     }
 }
