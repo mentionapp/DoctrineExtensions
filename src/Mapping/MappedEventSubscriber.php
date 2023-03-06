@@ -81,7 +81,7 @@ abstract class MappedEventSubscriber implements EventSubscriber
     private static $defaultAnnotationReader;
 
     /**
-     * @var CacheItemPoolInterface|null
+     * @var CacheItemPoolInterface
      */
     private $cacheItemPool;
 
@@ -89,6 +89,7 @@ abstract class MappedEventSubscriber implements EventSubscriber
     {
         $parts = explode('\\', $this->getNamespace());
         $this->name = end($parts);
+        $this->cacheItemPool = new ArrayAdapter();
     }
 
     /**
@@ -107,7 +108,7 @@ abstract class MappedEventSubscriber implements EventSubscriber
 
         $config = [];
 
-        $cacheItemPool = $this->getCacheItemPool($objectManager);
+        $cacheItemPool = $this->getCacheItemPool();
 
         $cacheId = ExtensionMetadataFactory::getCacheId($class, $this->getNamespace());
         $cacheItem = $cacheItemPool->getItem($cacheId);
@@ -148,7 +149,7 @@ abstract class MappedEventSubscriber implements EventSubscriber
                 $objectManager,
                 $this->getNamespace(),
                 $this->annotationReader,
-                $this->getCacheItemPool($objectManager)
+                $this->getCacheItemPool()
             );
         }
 
@@ -280,23 +281,8 @@ abstract class MappedEventSubscriber implements EventSubscriber
         return self::$defaultAnnotationReader;
     }
 
-    private function getCacheItemPool(ObjectManager $objectManager): CacheItemPoolInterface
+    private function getCacheItemPool(): CacheItemPoolInterface
     {
-        if (null !== $this->cacheItemPool) {
-            return $this->cacheItemPool;
-        }
-
-        $factory = $objectManager->getMetadataFactory();
-        $cacheDriver = $factory->getCacheDriver();
-
-        if (null === $cacheDriver) {
-            $this->cacheItemPool = new ArrayAdapter();
-
-            return $this->cacheItemPool;
-        }
-
-        $this->cacheItemPool = CacheAdapter::wrap($cacheDriver);
-
         return $this->cacheItemPool;
     }
 }
