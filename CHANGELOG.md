@@ -56,10 +56,6 @@ a release.
 - `Gedmo\Tool\Wrapper\AbstractWrapper::clear()` method.
 - `Gedmo\Tool\Wrapper\WrapperInterface::populate()` method.
 
-### Changed
-- In order to use a custom cache for storing configuration of an extension, the user has to call `setCacheItemPool()`
-  on the extension listener passing an instance of `Psr\Cache\CacheItemPoolInterface`.
-
 ## [3.4.0] - 2021-12-05
 ### Added
 - PHP 8 Attributes support for Doctrine MongoDB to document & traits.

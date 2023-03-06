@@ -11,33 +11,30 @@ declare(strict_types=1);
 
 namespace Gedmo\Tests\Mapping;
 
-use Doctrine\Common\EventManager;
-use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\Driver\YamlDriver;
 use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
 use Gedmo\Mapping\ExtensionMetadataFactory;
 use Gedmo\Tests\Mapping\Fixture\Yaml\Category;
 use Gedmo\Timestampable\TimestampableListener;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
  * These are mapping tests for timestampable extension
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
  */
-final class TimestampableMappingTest extends ORMMappingTestCase
+final class TimestampableMappingTest extends \PHPUnit\Framework\TestCase
 {
     public const TEST_YAML_ENTITY_CLASS = Category::class;
-
-    /**
-     * @var EntityManager
-     */
     private $em;
 
     protected function setUp(): void
     {
-        parent::setUp();
-
-        $config = $this->getBasicConfiguration();
+        $config = new \Doctrine\ORM\Configuration();
+        $config->setMetadataCache(new ArrayAdapter());
+        $config->setQueryCache(new ArrayAdapter());
+        $config->setProxyDir(TESTS_TEMP_DIR);
+        $config->setProxyNamespace('Gedmo\Mapping\Proxy');
         $chainDriverImpl = new MappingDriverChain();
         $chainDriverImpl->addDriver(
             new YamlDriver([__DIR__.'/Driver/Yaml']),
@@ -50,11 +47,11 @@ final class TimestampableMappingTest extends ORMMappingTestCase
             'memory' => true,
         ];
 
-        $evm = new EventManager();
-        $listener = new TimestampableListener();
-        $listener->setCacheItemPool($this->cache);
-        $evm->addEventSubscriber($listener);
-        $this->em = EntityManager::create($conn, $config, $evm);
+        //$config->setSQLLogger(new \Doctrine\DBAL\Logging\EchoSQLLogger());
+
+        $evm = new \Doctrine\Common\EventManager();
+        $evm->addEventSubscriber(new TimestampableListener());
+        $this->em = \Doctrine\ORM\EntityManager::create($conn, $config, $evm);
     }
 
     public function testYamlMapping(): void
@@ -64,7 +61,7 @@ final class TimestampableMappingTest extends ORMMappingTestCase
             self::TEST_YAML_ENTITY_CLASS,
             'Gedmo\Timestampable'
         );
-        $config = $this->cache->getItem($cacheId)->get();
+        $config = $this->em->getMetadataFactory()->getCacheDriver()->fetch($cacheId);
         static::assertArrayHasKey('create', $config);
         static::assertSame('created', $config['create'][0]);
         static::assertArrayHasKey('update', $config);

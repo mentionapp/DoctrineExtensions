@@ -75,8 +75,6 @@ class MySluggableListener extends SluggableListener
 {
     public function __construct()
     {
-        parent::__construct();
-
         $this->setTransliterator([Transliterator::class, 'transliterate']);
     }
 }

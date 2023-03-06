@@ -21,7 +21,6 @@ use Doctrine\Common\EventSubscriber;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Doctrine\Persistence\ObjectManager;
 use Gedmo\Mapping\Event\AdapterInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
@@ -81,15 +80,12 @@ abstract class MappedEventSubscriber implements EventSubscriber
     private static $defaultAnnotationReader;
 
     /**
-     * @var CacheItemPoolInterface
+     * Constructor
      */
-    private $cacheItemPool;
-
     public function __construct()
     {
         $parts = explode('\\', $this->getNamespace());
         $this->name = end($parts);
-        $this->cacheItemPool = new ArrayAdapter();
     }
 
     /**
@@ -102,31 +98,30 @@ abstract class MappedEventSubscriber implements EventSubscriber
      */
     public function getConfiguration(ObjectManager $objectManager, $class)
     {
-        if (isset(self::$configurations[$this->name][$class])) {
-            return self::$configurations[$this->name][$class];
-        }
-
         $config = [];
-
-        $cacheItemPool = $this->getCacheItemPool();
-
-        $cacheId = ExtensionMetadataFactory::getCacheId($class, $this->getNamespace());
-        $cacheItem = $cacheItemPool->getItem($cacheId);
-
-        if ($cacheItem->isHit()) {
-            $config = $cacheItem->get();
-            self::$configurations[$this->name][$class] = $config;
+        if (isset(self::$configurations[$this->name][$class])) {
+            $config = self::$configurations[$this->name][$class];
         } else {
-            // re-generate metadata on cache miss
-            $this->loadMetadataForObjectClass($objectManager, $objectManager->getClassMetadata($class));
-            if (isset(self::$configurations[$this->name][$class])) {
-                $config = self::$configurations[$this->name][$class];
-            }
-        }
+            $factory = $objectManager->getMetadataFactory();
+            $cacheDriver = $factory->getCacheDriver();
+            if ($cacheDriver) {
+                $cacheId = ExtensionMetadataFactory::getCacheId($class, $this->getNamespace());
+                if (false !== ($cached = $cacheDriver->fetch($cacheId))) {
+                    self::$configurations[$this->name][$class] = $cached;
+                    $config = $cached;
+                } else {
+                    // re-generate metadata on cache miss
+                    $this->loadMetadataForObjectClass($objectManager, $factory->getMetadataFor($class));
+                    if (isset(self::$configurations[$this->name][$class])) {
+                        $config = self::$configurations[$this->name][$class];
+                    }
+                }
 
-        $objectClass = $config['useObjectClass'] ?? $class;
-        if ($objectClass !== $class) {
-            $this->getConfiguration($objectManager, $objectClass);
+                $objectClass = $config['useObjectClass'] ?? $class;
+                if ($objectClass !== $class) {
+                    $this->getConfiguration($objectManager, $objectClass);
+                }
+            }
         }
 
         return $config;
@@ -148,8 +143,7 @@ abstract class MappedEventSubscriber implements EventSubscriber
             $this->extensionMetadataFactory[$oid] = new ExtensionMetadataFactory(
                 $objectManager,
                 $this->getNamespace(),
-                $this->annotationReader,
-                $this->getCacheItemPool()
+                $this->annotationReader
             );
         }
 
@@ -172,11 +166,6 @@ abstract class MappedEventSubscriber implements EventSubscriber
     public function setAnnotationReader($reader)
     {
         $this->annotationReader = $reader;
-    }
-
-    final public function setCacheItemPool(CacheItemPoolInterface $cacheItemPool): void
-    {
-        $this->cacheItemPool = $cacheItemPool;
     }
 
     /**
@@ -279,10 +268,5 @@ abstract class MappedEventSubscriber implements EventSubscriber
         }
 
         return self::$defaultAnnotationReader;
-    }
-
-    private function getCacheItemPool(): CacheItemPoolInterface
-    {
-        return $this->cacheItemPool;
     }
 }
