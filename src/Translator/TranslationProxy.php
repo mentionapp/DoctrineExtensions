@@ -18,41 +18,25 @@ use Doctrine\Common\Collections\Collection;
  */
 class TranslationProxy
 {
-    /**
-     * @var string
-     */
     protected $locale;
-    /**
-     * @var object
-     */
     protected $translatable;
-    /**
-     * @var string[]
-     */
     protected $properties = [];
-    /**
-     * @var string
-     *
-     * @phpstan-var class-string<TranslationInterface>
-     */
     protected $class;
     /**
-     * @var Collection<int, TranslationInterface>
+     * @var Collection|TranslationInterface[]
      */
     protected $coll;
 
     /**
      * Initializes translations collection
      *
-     * @param object $translatable object to translate
-     * @param string $locale       translation name
-     * @param array  $properties   object properties to translate
-     * @param string $class        translation entity|document class
+     * @param object     $translatable object to translate
+     * @param string     $locale       translation name
+     * @param array      $properties   object properties to translate
+     * @param string     $class        translation entity|document class
+     * @param Collection $coll         translations collection
      *
      * @throws \InvalidArgumentException Translation class doesn't implement TranslationInterface
-     *
-     * @phpstan-param class-string<TranslationInterface> $class
-     * @phpstan-param Collection<int, TranslationInterface> $coll
      */
     public function __construct($translatable, $locale, array $properties, $class, Collection $coll)
     {
@@ -67,19 +51,13 @@ class TranslationProxy
         }
     }
 
-    /**
-     * @param string $method
-     * @param array  $arguments
-     *
-     * @return mixed
-     */
     public function __call($method, $arguments)
     {
         $matches = [];
         if (preg_match('/^(set|get)(.*)$/', $method, $matches)) {
             $property = lcfirst($matches[2]);
 
-            if (in_array($property, $this->properties, true)) {
+            if (in_array($property, $this->properties)) {
                 switch ($matches[1]) {
                     case 'get':
                         return $this->getTranslatedValue($property);
@@ -102,14 +80,9 @@ class TranslationProxy
         return $return;
     }
 
-    /**
-     * @param string $property
-     *
-     * @return mixed
-     */
     public function __get($property)
     {
-        if (in_array($property, $this->properties, true)) {
+        if (in_array($property, $this->properties)) {
             if (method_exists($this, $getter = 'get'.ucfirst($property))) {
                 return $this->$getter;
             }
@@ -120,37 +93,22 @@ class TranslationProxy
         return $this->translatable->$property;
     }
 
-    /**
-     * @param string $property
-     * @param mixed  $value
-     *
-     * @return self
-     */
     public function __set($property, $value)
     {
-        if (in_array($property, $this->properties, true)) {
+        if (in_array($property, $this->properties)) {
             if (method_exists($this, $setter = 'set'.ucfirst($property))) {
                 return $this->$setter($value);
             }
 
-            $this->setTranslatedValue($property, $value);
-
-            return $this;
+            return $this->setTranslatedValue($property, $value);
         }
 
         $this->translatable->$property = $value;
-
-        return $this;
     }
 
-    /**
-     * @param string $property
-     *
-     * @return bool
-     */
     public function __isset($property)
     {
-        return in_array($property, $this->properties, true);
+        return in_array($property, $this->properties);
     }
 
     /**
@@ -182,8 +140,6 @@ class TranslationProxy
      *
      * @param string $property property name
      * @param string $value    value
-     *
-     * @return void
      */
     public function setTranslatedValue($property, $value)
     {
@@ -194,8 +150,13 @@ class TranslationProxy
 
     /**
      * Finds existing or creates new translation for specified property
+     *
+     * @param string $property object property name
+     * @param string $locale   locale name
+     *
+     * @return Translation
      */
-    private function findOrCreateTranslationForProperty(string $property, string $locale): TranslationInterface
+    private function findOrCreateTranslationForProperty($property, $locale)
     {
         foreach ($this->coll as $translation) {
             if ($locale === $translation->getLocale() && $property === $translation->getProperty()) {
