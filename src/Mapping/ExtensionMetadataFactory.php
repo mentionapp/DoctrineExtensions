@@ -114,9 +114,8 @@ class ExtensionMetadataFactory
         if (null !== $meta->reflClass) {
             foreach (array_reverse(class_parents($meta->getName())) as $parentClass) {
                 // read only inherited mapped classes
-                if ($cmf->hasMetadataFor($parentClass)) {
+                if ($cmf->hasMetadataFor($parentClass) || !$cmf->isTransient($parentClass)) {
                     assert(class_exists($parentClass));
-
                     $class = $this->objectManager->getClassMetadata($parentClass);
 
                     assert($class instanceof DocumentClassMetadata || $class instanceof EntityClassMetadata);
