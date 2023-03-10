@@ -93,7 +93,7 @@ class ExtensionMetadataFactory
         if (null !== $meta->reflClass) {
             foreach (array_reverse(class_parents($meta->getName())) as $parentClass) {
                 // read only inherited mapped classes
-                if ($cmf->hasMetadataFor($parentClass)) {
+                if ($cmf->hasMetadataFor($parentClass) || !$cmf->isTransient($parentClass)) {
                     $class = $this->objectManager->getClassMetadata($parentClass);
                     $this->driver->readExtendedMetadata($class, $config);
                     $isBaseInheritanceLevel = !$class->isInheritanceTypeNone()
